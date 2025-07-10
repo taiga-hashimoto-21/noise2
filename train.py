@@ -79,3 +79,6 @@ with torch.no_grad():
     out = model2(dummy)
     print("推論テスト出力サイズ:", out.shape)
     print("推論結果例:", out[:2])
+
+with open('/content/drive/My Drive/myfile.txt', 'w') as f:
+    f.write("I'm not ephemeral anymore!")
