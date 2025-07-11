@@ -70,15 +70,18 @@ for epoch in range(1, epochs + 1):
 torch.save(model.state_dict(), 'model.pth')
 print("✅ 学習が完了し、'model.pth' を保存しました。")
 
-# ─── 推論テスト ───────────────────────
-model2 = CNN1d_with_resnet().to(device)
-model2.load_state_dict(torch.load('model.pth', map_location=device))
-model2.eval()
-with torch.no_grad():
-    dummy = torch.randn(3, 1, X.size(2)).to(device)
-    out = model2(dummy)
-    print("推論テスト出力サイズ:", out.shape)
-    print("推論結果例:", out[:2])
+# ─── Google Drive に保存 ──────────────
+from google.colab import drive
+import os
+import shutil
 
-with open('/content/drive/My Drive/myfile.txt', 'w') as f:
-    f.write("I'm not ephemeral anymore!")
+# Google Drive をマウント
+drive.mount('/content/drive')
+
+# 保存先フォルダ（なければ作る）
+drive_folder = '/content/drive/MyDrive/noise'
+os.makedirs(drive_folder, exist_ok=True)
+
+# ファイルを Drive にコピー
+shutil.copy('model.pth', os.path.join(drive_folder, 'model.pth'))
+print("✅ 'model.pth' を Google Drive の noise フォルダに保存しました。")
