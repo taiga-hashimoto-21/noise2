@@ -17,7 +17,11 @@ import os
 from datetime import datetime, timedelta
 
 # noise フォルダから model と loss を import
-from model import CNN1d_with_resnet
+import importlib
+if 'model' in sys.modules:
+    importlib.reload(sys.modules['model'])
+
+from model import CNN1d_with_resnet, adjust_learning_rate_warmup
 from loss_function import WeightedMSELoss
 
 # ─── 保存先ディレクトリ作成（タイムスタンプ付き） ─────
@@ -74,7 +78,12 @@ batch_size = 32
 num_samples = X.size(0)
 loss_log = []
 
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+
 for epoch in range(1, epochs + 1):
+    warmup_lr = adjust_learning_rate_warmup(optimizer, epoch-1)
+    if warmup_lr is None:
+        scheduler.step()
     perm = torch.randperm(num_samples)
     running_loss = 0.0
 
