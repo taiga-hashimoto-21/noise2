@@ -14,23 +14,26 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # noise フォルダから model と loss を import
-from model_7_11 import CNN1d_with_resnet
+from model import CNN1d_with_resnet
 from loss_function import WeightedMSELoss
 
 # ─── 保存先ディレクトリ作成（タイムスタンプ付き） ─────
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-output_dir = f'/content/drive/MyDrive/noise/model_logs/{timestamp}'
-os.makedirs(output_dir, exist_ok=True)
+jst_now = datetime.utcnow() + timedelta(hours=9)
+timestamp = jst_now.strftime('%m%d_%H:%M')
+drive_output_dir = f'/content/drive/MyDrive/noise/model_logs/{timestamp}'
+local_output_dir = f'model_logs/{timestamp}'
+os.makedirs(drive_output_dir, exist_ok=True)
+os.makedirs(local_output_dir, exist_ok=True)
 
 # ─── ノイズ関数の定義 ─────────────────
 def process_noise(noise, clip_range=0.5, smoothing_factor=0.1):
     scaled_noise = noise / clip_range
     processed_noise = torch.tanh(scaled_noise) * clip_range
     smoothed_noise = processed_noise * (1 - smoothing_factor) + noise * smoothing_factor
-    return smoothed_noise   
+    return smoothed_noise
 
 def add_structured_noise(batch_x):
     x = torch.linspace(1, 3000, 3000, device=batch_x.device)
@@ -52,13 +55,13 @@ def compute_power_spectrum(signal, fs):
 
 # ─── デバイス & データ読み込み ───────
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("使用デバイス:", device)
+print("\u4f7f\u7528\u30c7\u30d0\u30a4\u30b9:", device)
 
 with open('/content/drive/MyDrive/noise/data_lowF_noise.pickle', 'rb') as f:
     data = pickle.load(f)
 X = data['x'].float().to(device)
 Y = data['y'].float().to(device)
-print("データ形状 X:", X.shape, " Y:", Y.shape)
+print("\u30c7\u30fc\u30bf\u5f62\u72b6 X:", X.shape, " Y:", Y.shape)
 
 # ─── モデルと訓練設定 ───────────────
 model = CNN1d_with_resnet().to(device)
@@ -66,9 +69,10 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # ─── 学習ループ ────────────────────
-epochs = 2  # 好きな回数に
+epochs = 100
 batch_size = 32
 num_samples = X.size(0)
+loss_log = []
 
 for epoch in range(1, epochs + 1):
     perm = torch.randperm(num_samples)
@@ -90,9 +94,25 @@ for epoch in range(1, epochs + 1):
         running_loss += loss.item() * batch_x.size(0)
 
     epoch_loss = running_loss / num_samples
-    print(f"Epoch {epoch}/{epochs}  平均損失: {epoch_loss:.6f}")
+    loss_log.append(epoch_loss)
+    print(f"Epoch {epoch}/{epochs}  \u5e73\u5747\u640d\u5931: {epoch_loss:.6f}")
 
-# ─── 推論＆FFT用データ準備 ──────────────
+# ─── 損失ロググラフ ─────
+np.save(os.path.join(drive_output_dir, 'loss_log.npy'), np.array(loss_log))
+np.save(os.path.join(local_output_dir, 'loss_log.npy'), np.array(loss_log))
+
+plt.figure()
+plt.plot(range(1, epochs+1), loss_log, marker='o')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training Loss over Epochs')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig(os.path.join(drive_output_dir, 'loss_curve.png'))
+plt.savefig(os.path.join(local_output_dir, 'loss_curve.png'))
+plt.show()
+
+# ─── 推論とFFT ─────
 model.eval()
 with torch.no_grad():
     x_sample = X[:1]
@@ -104,55 +124,53 @@ ea_np = ea_pred.squeeze().cpu().numpy()
 eb_np = eb_pred.squeeze().cpu().numpy()
 y_np  = y_sample.squeeze().cpu().numpy()
 
-# 長さを揃える（3000点にパディング）
 target_len = 3000
 ea_np = np.pad(ea_np, (0, target_len - len(ea_np)), mode='constant')
 eb_np = np.pad(eb_np, (0, target_len - len(eb_np)), mode='constant')
 y_np  = np.pad(y_np,  (0, target_len - len(y_np)),  mode='constant')
 
-fs = 30000  # サンプリング周波数（仮）
+fs = 30000
+freq, y_power = compute_power_spectrum(y_np, fs)
+_, ea_power = compute_power_spectrum(ea_np, fs)
+_, eb_power = compute_power_spectrum(eb_np, fs)
 
-# FFT実行
-freq, y_power_ea  = compute_power_spectrum(y_np, fs)
-_, ea_power       = compute_power_spectrum(ea_np, fs)
-_, y_power_eb     = compute_power_spectrum(y_np, fs)
-_, eb_power       = compute_power_spectrum(eb_np, fs)
+# ─── グラフ描画関数 ─────
+def save_plot(freq, y, pred, title, name):
+    plt.figure()
+    plt.scatter(freq, y, s=1, alpha=0.5, label='Y (answer)', color='red')
+    plt.scatter(freq, pred, s=1, alpha=0.5, label=name + ' (prediction)', color='blue')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Power (a.u.)')
+    plt.title(f'Scatter Power Spectrum: Y vs {name}')
+    plt.legend()
+    plt.grid(True, which='both', ls='--')
+    plt.tight_layout()
+    plt.savefig(os.path.join(drive_output_dir, f'scatter_power_{name}.png'))
+    plt.savefig(os.path.join(local_output_dir, f'scatter_power_{name}.png'))
+    plt.show()
 
-# ─── グラフ①：正解 vs ea ─────
-plt.figure(figsize=(9,6))
-plt.scatter(freq, y_power_ea, label='Y (answer)', color='red', marker='o', s=1, alpha=0.5)
-plt.scatter(freq, ea_power,   label='ea (prediction)', color='blue', marker='o', s=1, alpha=0.5)
-plt.xscale('log')
-plt.yscale('log')
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Power (a.u.)')
-plt.title('Power Spectrum: Y vs ea')
-plt.legend()
-plt.grid(True, which='both', ls='--')
-plt.tight_layout()
-ea_path = os.path.join(output_dir, 'power_spectrum_ea_vs_Y.png')
-plt.savefig(ea_path)
-plt.show()
-print(f"✅ グラフ 'ea vs Y' を保存しました: {ea_path}")
+    plt.figure()
+    plt.plot(freq, y, label='Y (answer)', color='red')
+    plt.plot(freq, pred, label=f'{name} (prediction)', color='blue')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Power (a.u.)')
+    plt.title(f'Plot Power Spectrum: Y vs {name}')
+    plt.legend()
+    plt.grid(True, which='both', ls='--')
+    plt.tight_layout()
+    plt.savefig(os.path.join(drive_output_dir, f'plot_power_{name}.png'))
+    plt.savefig(os.path.join(local_output_dir, f'plot_power_{name}.png'))
+    plt.show()
 
-# ─── グラフ②：正解 vs eb ─────
-plt.figure(figsize=(9,6))
-plt.scatter(freq, y_power_eb, label='Y (answer)', color='red', marker='o', s=1, alpha=0.5)
-plt.scatter(freq, eb_power,   label='eb (prediction)', color='blue', marker='o', s=1, alpha=0.5)
-plt.xscale('log')
-plt.yscale('log')
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Power (a.u.)')
-plt.title('Power Spectrum: Y vs eb')
-plt.legend()
-plt.grid(True, which='both', ls='--')
-plt.tight_layout()
-eb_path = os.path.join(output_dir, 'power_spectrum_eb_vs_Y.png')
-plt.savefig(eb_path)
-plt.show()
-print(f"✅ グラフ 'eb vs Y' を保存しました: {eb_path}")
+# ─── グラフ出力 ─────
+save_plot(freq, y_power, ea_power, 'ea', 'ea')
+save_plot(freq, y_power, eb_power, 'eb', 'eb')
 
-# ─── モデル保存（日時付きフォルダ） ─────
-model_path = os.path.join(output_dir, 'model.pth')
-torch.save(model.state_dict(), model_path)
-print(f"✅ モデルを Google Drive に保存しました: {model_path}")
+# ─── モデル保存 ─────
+torch.save(model.state_dict(), os.path.join(drive_output_dir, 'model.pth'))
+torch.save(model.state_dict(), os.path.join(local_output_dir, 'model.pth'))
+print("\n✅ モデルとグラフをすべて保存しました（Drive & ローカル）")
