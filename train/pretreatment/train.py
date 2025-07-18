@@ -21,10 +21,13 @@ from model import CNN1d_with_resnet
 from loss_function import WeightedMSELoss
 
 # ─── 保存先ディレクトリ作成（タイムスタンプ付き） ─────
+custom_tag = "model2です。"
 jst_now = datetime.utcnow() + timedelta(hours=9)
 timestamp = jst_now.strftime('%m%d_%H:%M')
-drive_output_dir = f'/content/drive/MyDrive/noise/model_logs/{timestamp}'
-local_output_dir = f'model_logs/{timestamp}'
+folder_name = f"{timestamp}_{custom_tag}"
+
+drive_output_dir = f'/content/drive/MyDrive/noise/model_logs/{folder_name}'
+local_output_dir = f'model_logs/{folder_name}'
 os.makedirs(drive_output_dir, exist_ok=True)
 os.makedirs(local_output_dir, exist_ok=True)
 

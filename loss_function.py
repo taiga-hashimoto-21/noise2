@@ -15,3 +15,4 @@ class WeightedMSELoss(nn.Module):
             self.weight2 * squared_diff[:, 1].unsqueeze(1)
         ], dim=1)
         return torch.mean(weighted_squared_diff)
+
