@@ -202,6 +202,8 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
+        # 前処理2
+        # log + 標準化（全体）
         x = torch.log(x * 1e20 + 1e-8)
         x = (x - x.mean()) / (x.std() + 1e-6)
         

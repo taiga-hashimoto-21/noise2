@@ -202,6 +202,8 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
+        # 前処理10
+        # Rank-based スケーリング（非線形正規化）
         ranks = x.argsort(dim=-1).argsort(dim=-1).float()
         x = ranks / (x.size(-1) - 1)
         

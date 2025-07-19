@@ -202,6 +202,8 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
+        # 前処理7
+        # 平方根スケーリング（ルートで圧縮）
         x = torch.sqrt(x + 1e-6)
         
         low = x[:,:,0:80]

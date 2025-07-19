@@ -202,6 +202,8 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
+        # 前処理8
+        # 全体標準化 → ソフトクリッピング
         x = (x - x.mean()) / (x.std() + 1e-6)
         x = torch.tanh(x)
         

@@ -202,6 +202,8 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
+        # 前処理1
+        # 元祖：スケーリング＋ログ
         scale_factor = 2.5e24
         x = x * scale_factor
         x = torch.log(x)
