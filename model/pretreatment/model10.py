@@ -220,3 +220,4 @@ class CNN1d_with_resnet(nn.Module):
         x = torch.cat([low,middle,hight],dim=1)
         x = self.resnet(x)
         return x
+    

@@ -202,10 +202,10 @@ class CNN1d_with_resnet(nn.Module):
         self.resnet = timm.create_model('resnet18', pretrained=False, num_classes=2)
 
     def forward(self, x, pos=None):
-        # 前処理4
-        # Min-Max 正規化（全体）
-        x_min, x_max = x.min(), x.max()
-        x = (x - x_min) / (x_max - x_min + 1e-6)
+        # 前処理12
+        # 平均相対誤差補正
+        mean_vals = x.mean(dim=-1, keepdim=True)
+        x = (x - mean_vals) / (mean_vals.abs() + 1e-6)
         
         low = x[:,:,0:80]
         middle = x[:,:,30:300]
