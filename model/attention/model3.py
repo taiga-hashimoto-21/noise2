@@ -13,6 +13,7 @@ import timm
 class MHSA1D(nn.Module):
     def __init__(self, dim, heads=4):
         super().__init__()
+        self.model_name = "これattention_モデル3です。"
         self.heads = heads
         self.scale = (dim // heads) ** -0.5
         self.qkv = nn.Linear(dim, dim * 3)

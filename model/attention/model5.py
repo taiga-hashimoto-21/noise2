@@ -152,6 +152,7 @@ class CNN1d_hight(nn.Module):
 class CNN1d_with_resnet(nn.Module):
     def __init__(self, debug=False):
         super().__init__()
+        self.model_name = "これattention_モデル5です。"
         self.cnn1 = CNN1d_low()
         self.cnn2 = CNN1d_middle()
         self.cnn3 = CNN1d_hight()

@@ -3,6 +3,11 @@
 # 利点：軽いし、CNNにそのまま挿せる
 # 今回向いてるか？：ResNet入れてるならこいつは“相性のいい親戚”
 
+# 2. Squeeze-and-Excitation (SE) Block
+# 特徴：チャネル方向だけを見て“重要な特徴だけを強調”
+# 利点：軽いし、CNNにそのまま挿せる
+# 今回向いてるか？：ResNet入れてるならこいつは“相性のいい親戚”
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -102,6 +107,7 @@ class CNN1d_hight(nn.Module):
 class CNN1d_with_resnet(nn.Module):
     def __init__(self, debug=False):
         super().__init__()
+        self.model_name = "これattention_モデル2です。"
         self.cnn1 = CNN1d_low()
         self.cnn2 = CNN1d_middle()  # ← SEBlock入り
         self.cnn3 = CNN1d_hight()
